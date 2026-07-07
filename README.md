@@ -61,6 +61,31 @@ Record RealSense + audio + OptiTrack CSV adapter for 60 seconds:
 python main.py --out_dir trial_001 --duration 60
 ```
 
+With Motive on the same PC using `Local Interface = loopback` and `Transmission Type = Multicast`, the recorder can receive NatNet data directly over raw UDP:
+
+```powershell
+python main.py --out_dir trial_001 --duration 60 --audio_device 21 --rs_warmup_frames 30
+```
+
+For Motive running on the same PC with `Local Interface = loopback` and `Transmission Type = Multicast`, the default addresses are correct:
+
+```text
+--optitrack_server 127.0.0.1
+--optitrack_client 127.0.0.1
+```
+
+If Motive uses Unicast, add:
+
+```powershell
+--optitrack_unicast
+```
+
+You can also connect through the official NatNet Python sample by passing its folder or `NatNetClient.py` directly:
+
+```powershell
+python main.py --out_dir trial_001 --duration 60 --audio_device 21 --rs_warmup_frames 30 --optitrack_natnet_path "C:\path\to\NatNetSDK\Samples\Python"
+```
+
 Record until Ctrl+C:
 
 ```powershell
@@ -118,7 +143,15 @@ python main.py --out_dir trial_001 --duration 60 --audio_device 1
 
 Motive should do camera calibration, marker recognition, and rigid body reconstruction. Python only receives the NatNet stream from Motive.
 
-The recorder provides `OptiTrackNatNetAdapter` in `recorder/optitrack_recorder.py`. Start the adapter with the main recorder, then call one of these methods from the official NatNet Python sample callback:
+In Motive, enable `Streaming > NatNet` and enable the data types you need, especially `Rigid Bodies`. If Motive and this Python recorder run on the same computer, `Local Interface = loopback` is fine. If they run on different computers, select the Motive computer's real network interface and pass those IP addresses to the recorder.
+
+The recorder includes a lightweight raw UDP NatNet frame parser for rigid bodies. It is intended for Motive's standard NatNet frame stream and records ID, position, quaternion, NatNet frame number, and tracking validity. The recorder can also load the official NatNet Python sample automatically when you pass `--optitrack_natnet_path`. The path may point either to the sample folder containing `NatNetClient.py` or directly to `NatNetClient.py`.
+
+```powershell
+python main.py --out_dir trial_001 --optitrack_natnet_path "C:\path\to\NatNetClient.py"
+```
+
+If your NatNet SDK version needs custom handling, the recorder still provides `OptiTrackNatNetAdapter` in `recorder/optitrack_recorder.py`. Start the adapter with the main recorder, then call one of these methods from the official NatNet Python sample callback:
 
 ```python
 optitrack.submit_rigid_body_frame(

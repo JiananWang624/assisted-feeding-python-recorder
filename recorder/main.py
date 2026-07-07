@@ -32,6 +32,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rs_fps", type=int, default=30)
     parser.add_argument("--jpeg_quality", type=int, default=95)
     parser.add_argument("--rs_warmup_frames", type=int, default=15)
+    parser.add_argument(
+        "--optitrack_natnet_path",
+        default=None,
+        help="Path to official NatNet Python sample folder or NatNetClient.py",
+    )
+    parser.add_argument("--optitrack_server", default="127.0.0.1", help="Motive/NatNet server IP")
+    parser.add_argument("--optitrack_client", default="127.0.0.1", help="Local client IP")
+    parser.add_argument("--optitrack_data_port", type=int, default=1511, help="NatNet data UDP port")
+    parser.add_argument(
+        "--optitrack_multicast_address",
+        default="239.255.42.99",
+        help="NatNet multicast group address",
+    )
+    parser.add_argument(
+        "--optitrack_unicast",
+        action="store_true",
+        help="Use unicast instead of multicast for NatNet.",
+    )
     return parser.parse_args()
 
 
@@ -55,7 +73,15 @@ def build_config(args: argparse.Namespace) -> RecorderConfig:
             device=audio_device,
             blocksize=args.audio_blocksize,
         ),
-        optitrack=OptiTrackConfig(enabled=not args.no_optitrack),
+        optitrack=OptiTrackConfig(
+            enabled=not args.no_optitrack,
+            natnet_path=args.optitrack_natnet_path,
+            server_address=args.optitrack_server,
+            client_address=args.optitrack_client,
+            use_multicast=not args.optitrack_unicast,
+            data_port=args.optitrack_data_port,
+            multicast_address=args.optitrack_multicast_address,
+        ),
     )
 
 
@@ -121,11 +147,6 @@ def main() -> None:
     stop_requested_host_time_s = None
 
     try:
-        if config.optitrack.enabled:
-            optitrack = OptiTrackNatNetAdapter(out_dir, clock, config.optitrack)
-            optitrack.start()
-            recorders.append(optitrack)
-
         if config.realsense.enabled:
             realsense = RealSenseRecorder(out_dir, clock, config.realsense)
             realsense.start()
@@ -135,6 +156,11 @@ def main() -> None:
             audio = AudioRecorder(out_dir, clock, config.audio)
             audio.start()
             recorders.append(audio)
+
+        if config.optitrack.enabled:
+            optitrack = OptiTrackNatNetAdapter(out_dir, clock, config.optitrack)
+            optitrack.start()
+            recorders.append(optitrack)
 
         clock.start()
         started_at_utc = datetime.now(timezone.utc).isoformat()

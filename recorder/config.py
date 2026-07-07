@@ -29,7 +29,13 @@ class AudioConfig:
 class OptiTrackConfig:
     enabled: bool = True
     queue_size: int = 4096
-    adapter_mode: str = "placeholder"
+    adapter_mode: str = "raw_udp"
+    natnet_path: str | None = None
+    server_address: str = "127.0.0.1"
+    client_address: str = "127.0.0.1"
+    use_multicast: bool = True
+    multicast_address: str = "239.255.42.99"
+    data_port: int = 1511
 
 
 @dataclass
