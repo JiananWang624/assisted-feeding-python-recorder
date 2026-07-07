@@ -41,7 +41,9 @@ class OptiTrackNatNetAdapter:
 
     def start(self) -> None:
         self.writer.start()
-        if self.config.natnet_path:
+        natnet_path = self._resolve_natnet_path()
+        if natnet_path:
+            self.config.natnet_path = str(natnet_path)
             self._start_natnet_if_configured()
         elif self.config.adapter_mode == "raw_udp":
             self._start_raw_udp_receiver()
@@ -246,20 +248,43 @@ class OptiTrackNatNetAdapter:
             f"server={self.config.server_address}, client={self.config.client_address}, mode={mode}"
         )
 
+    def _resolve_natnet_path(self) -> Path | None:
+        candidates: list[Path] = []
+        if self.config.natnet_path:
+            candidates.append(Path(self.config.natnet_path))
+
+        for env_name in ("NATNET_PYTHON_SAMPLE", "NATNET_SDK_ROOT"):
+            value = __import__("os").environ.get(env_name)
+            if value:
+                candidates.append(Path(value))
+
+        cwd = Path.cwd()
+        candidates.extend(
+            [
+                cwd / "third_party" / "optitrack_natnet_sdk" / "Samples" / "Python",
+                cwd / "third_party" / "optitrack_natnet_sdk",
+                Path(r"C:\Program Files\OptiTrack\NatNet SDK\Samples\Python"),
+                Path(r"C:\Program Files\OptiTrack\NatNetSDK\Samples\Python"),
+                Path(r"C:\NatNet SDK\Samples\Python"),
+            ]
+        )
+
+        for candidate in candidates:
+            if self._find_natnet_client_file(candidate) is not None:
+                return candidate
+        return None
+
     @staticmethod
     def _load_natnet_client_class(path: Path):
-        if path.is_dir():
-            natnet_file = path / "NatNetClient.py"
-            search_path = path
-        else:
-            natnet_file = path
-            search_path = path.parent
-
-        if not natnet_file.exists():
+        natnet_file = OptiTrackNatNetAdapter._find_natnet_client_file(path)
+        if natnet_file is None:
             raise FileNotFoundError(
-                f"Could not find NatNetClient.py at {natnet_file}. "
-                "Use --optitrack_natnet_path with the official NatNet Python sample folder."
+                f"Could not find NatNetClient.py under {path}. "
+                "Use --optitrack_natnet_path with an official NatNet Python sample folder "
+                "that contains NatNetClient.py, or use the default raw UDP receiver."
             )
+        search_path = natnet_file.parent
+
 
         if str(search_path) not in sys.path:
             sys.path.insert(0, str(search_path))
@@ -274,6 +299,21 @@ class OptiTrackNatNetAdapter:
         if not hasattr(module, "NatNetClient"):
             raise ImportError(f"{natnet_file} does not define a NatNetClient class")
         return module.NatNetClient
+
+    @staticmethod
+    def _find_natnet_client_file(path: Path) -> Path | None:
+        if path.is_file() and path.name == "NatNetClient.py":
+            return path
+        if not path.exists() or not path.is_dir():
+            return None
+
+        direct = path / "NatNetClient.py"
+        if direct.exists():
+            return direct
+
+        for candidate in path.rglob("NatNetClient.py"):
+            return candidate
+        return None
 
     @staticmethod
     def _call_if_present(obj: object, method_name: str, *args) -> None:

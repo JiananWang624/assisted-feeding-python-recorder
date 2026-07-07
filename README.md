@@ -147,6 +147,26 @@ In Motive, enable `Streaming > NatNet` and enable the data types you need, espec
 
 The recorder includes a lightweight raw UDP NatNet frame parser for rigid bodies. It is intended for Motive's standard NatNet frame stream and records ID, position, quaternion, NatNet frame number, and tracking validity. The recorder can also load the official NatNet Python sample automatically when you pass `--optitrack_natnet_path`. The path may point either to the sample folder containing `NatNetClient.py` or directly to `NatNetClient.py`.
 
+OptiTrack's documentation lists `PythonSample` as a direct depacketization sample: it opens sockets and decodes the NatNet bit-stream without using the NatNet SDK library. The recorder's default `raw_udp` receiver follows that same approach, but only keeps the rigid-body fields needed for this dataset.
+
+To use the official SDK sample locally:
+
+1. Download the NatNet SDK from OptiTrack's NatNet SDK downloads page.
+2. Extract/install it outside the repository.
+3. Import the Python sample into the ignored `third_party/` folder:
+
+```powershell
+python tools/import_official_natnet_sample.py "C:\path\to\NatNet SDK"
+```
+
+The script searches for `NatNetClient.py` or `PythonSample.py`. If it finds `NatNetClient.py`, the recorder can use it automatically from:
+
+```text
+third_party/optitrack_natnet_sdk/Samples/Python
+```
+
+`third_party/` is ignored by git, so official SDK files are kept local and are not redistributed with this project.
+
 ```powershell
 python main.py --out_dir trial_001 --optitrack_natnet_path "C:\path\to\NatNetClient.py"
 ```

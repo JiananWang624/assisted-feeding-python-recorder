@@ -1,5 +1,6 @@
 data/
 .vscode/
+third_party/
 __pycache__/
 *.py[cod]
 *.pyo
